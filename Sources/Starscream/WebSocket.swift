@@ -398,25 +398,6 @@ open class WebSocket : NSObject, StreamDelegate, WebSocketClient, WSStreamDelega
 
     /// Receives a callback for each pong message recived.
     public weak var pongDelegate: WebSocketPongDelegate?
-
-    private let delegateLock = NSRecursiveLock()
-
-    public func threadSafeUpdate(delegate: WebSocketDelegate?) {
-        delegateLock.lock()
-        defer {
-            delegateLock.unlock()
-        }
-        self.delegate = delegate
-    }
-
-    private func threadSafeCallDelegate(_ delegateAction: () -> Void) {
-        delegateLock.lock()
-        defer {
-            delegateLock.unlock()
-        }
-        delegateAction()
-    }
-
     
     public var onConnect: (() -> Void)?
     public var onDisconnect: ((Error?) -> Void)?
@@ -855,9 +836,7 @@ open class WebSocket : NSObject, StreamDelegate, WebSocketClient, WSStreamDelega
                 callbackQueue.async { [weak self] in
                     guard let self = self else { return }
                     self.onConnect?()
-                    self.threadSafeCallDelegate {
-                        self.delegate?.websocketDidConnect(socket: self)
-                    }
+                    self.delegate?.websocketDidConnect(socket: self)
                     self.advancedDelegate?.websocketDidConnect(socket: self)
                     NotificationCenter.default.post(name: NSNotification.Name(WebsocketDidConnectNotification), object: self)
                 }
@@ -1200,9 +1179,7 @@ open class WebSocket : NSObject, StreamDelegate, WebSocketClient, WSStreamDelega
                     callbackQueue.async { [weak self] in
                         guard let self = self else { return }
                         self.onText?(str)
-                        self.threadSafeCallDelegate {
-                            self.delegate?.websocketDidReceiveMessage(socket: self, text: str)
-                        }
+                        self.delegate?.websocketDidReceiveMessage(socket: self, text: str)
                         self.advancedDelegate?.websocketDidReceiveMessage(socket: self, text: str, response: response)
                     }
                 }
@@ -1212,9 +1189,7 @@ open class WebSocket : NSObject, StreamDelegate, WebSocketClient, WSStreamDelega
                     callbackQueue.async { [weak self] in
                         guard let self = self else { return }
                         self.onData?(data as Data)
-                        self.threadSafeCallDelegate {
-                            self.delegate?.websocketDidReceiveData(socket: self, data: data as Data)
-                        }
+                        self.delegate?.websocketDidReceiveData(socket: self, data: data as Data)
                         self.advancedDelegate?.websocketDidReceiveData(socket: self, data: data as Data, response: response)
                     }
                 }
@@ -1325,9 +1300,7 @@ open class WebSocket : NSObject, StreamDelegate, WebSocketClient, WSStreamDelega
         callbackQueue.async { [weak self] in
             guard let self = self else { return }
             self.onDisconnect?(error)
-            self.threadSafeCallDelegate {
-                self.delegate?.websocketDidDisconnect(socket: self, error: error)
-            }
+            self.delegate?.websocketDidDisconnect(socket: self, error: error)
             self.advancedDelegate?.websocketDidDisconnect(socket: self, error: error)
             let userInfo = error.map{ [WebsocketDisconnectionErrorKeyName: $0] }
             NotificationCenter.default.post(name: NSNotification.Name(WebsocketDidDisconnectNotification), object: self, userInfo: userInfo)
